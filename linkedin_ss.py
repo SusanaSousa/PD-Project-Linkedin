@@ -1,24 +1,8 @@
-#https://code.visualstudio.com/docs/python/python-tutorial
-#https://www.geeksforgeeks.org/scrape-linkedin-using-selenium-and-beautiful-soup-in-python/
-#https://medium.com/mlearning-ai/how-to-build-a-web-scraper-for-linkedin-6b49b6b6adfc
-#python -m pip install matplotlib
-
-#from selenium import webdriver
-#from bs4 import BeautifulSoup
-#from urllib.request import urlopen
-#import pandas as pd
-
-
-#url = "http://olympus.realpython.org/profiles/dionysus"
-#page = urlopen(url)
-#html = page.read().decode("utf-8")
-#soup = BeautifulSoup(html, "html.parser")
-
-#print(soup.get_text())
-
 #Nota  : Para iniciar a execução dos scripts foi necessário alterar a executionPolicy
 #Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
-
+#to install new libraries : 
+#python -m pip install matplotlib
+#pip install matplotlib
 #%%
 ###1.Import packages
 from selenium import webdriver
@@ -26,27 +10,16 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 import time
+import pandas as pd
+
 
 #%%
-###2. Creating a webdriver instance
-driver = webdriver.Chrome("C:\\Users\\Susana\\AppData\\Local\\Temp\\Temp1_chromedriver_win32.zip\\chromedriver.exe")
-
-#Tenho de fazer o starter do driver sempre ? 
-# This instance will be used to log into LinkedIn
-
-#%%
-###3. Initializing credentials:
+###2. Starting and Log In
 email = "projecto.linkedin@gmail.com"
 password = "susanadomtiago@2022"
-
-#%%
-###4. Opening linkedIn's login page
+driver = webdriver.Chrome("C:\\Users\\susys\\AppData\\Local\\Temp\\Temp1_chromedriver_win32.zip\\chromedriver.exe")
 driver.get("https://linkedin.com/uas/login")
-
-#%% 
-###5. Log in in the initial page
 time.sleep(5)
-
 driver.find_element(By.ID, 'username').send_keys(email)
 driver.find_element(By.ID, 'password').send_keys(password)
 time.sleep(6)
@@ -55,110 +28,203 @@ driver.find_element(By.XPATH,"//button[@type='submit']").click()
 #Now we are logged into linkeding with our dummy account.
 
 #%%
-###6. Enter into the profile page
-#profile_url = "https://www.linkedin.com/in/john-snow-7995b2256/"
-profile_url = "https://www.linkedin.com/in/susanapsousa/"
-#profile_url = "https://www.linkedin.com/in/josesousabi/details/experience/"
-#https://www.linkedin.com/in/susanapsousa/details/experience/
+def ScrollDown():
+	time.sleep(5) 
+	#Now we will scroll into the button : 
+	start = time.time()
+	# will be used in the while loop
+	initialScroll = 0
+	finalScroll = 1000
 
-#%%
-###7. Using the selenium driver to get the information profile.
-#Then we will scroll the entire page to make sure we load the entire page.
-driver.get(profile_url)
-time.sleep(5) 
-#Now we will scroll into the button : 
-start = time.time()
+	while True:
+		driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+		# this command scrolls the window starting from the pixel value stored in the initialScroll
+		# variable to the pixel value stored at the finalScroll variable
+		initialScroll = finalScroll
+		finalScroll += 1000
+		# we will stop the script for 3 seconds so that the data can load
+		time.sleep(2)
+		# You can change it as per your needs and internet speed
+		end = time.time()
+		# We will scroll for 10 seconds.You can change it as per your needs and internet speed
+		if round(end - start) > 10:
+			break
+#%% 
+def linkedInLoadPage(url):
+	driver.get(url)
+	time.sleep(5) 
+	#Now we will scroll into the button : 
+	start = time.time()
+	# will be used in the while loop
+	initialScroll = 0
+	finalScroll = 1000
 
-# will be used in the while loop
-initialScroll = 0
-finalScroll = 1000
+	while True:
+		driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+		# this command scrolls the window starting from the pixel value stored in the initialScroll
+		# variable to the pixel value stored at the finalScroll variable
+		initialScroll = finalScroll
+		finalScroll += 1000
+		# we will stop the script for 3 seconds so that the data can load
+		time.sleep(2)
+		# You can change it as per your needs and internet speed
+		end = time.time()
+		# We will scroll for 10 seconds.You can change it as per your needs and internet speed
+		if round(end - start) > 10:
+			break
 
-while True:
-	driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-	# this command scrolls the window starting from
-	# the pixel value stored in the initialScroll
-	# variable to the pixel value stored at the
-	# finalScroll variable
-	initialScroll = finalScroll
-	finalScroll += 1000
-
-	# we will stop the script for 3 seconds so that
-	# the data can load
-	time.sleep(3)
-	# You can change it as per your needs and internet speed
-
-	end = time.time()
-
-	# We will scroll for 10 seconds.
-	# You can change it as per your needs and internet speed
-	if round(end - start) > 10:
-		break
-
-src = driver.page_source
+	src = driver.page_source
+	soup = BeautifulSoup(src, 'html.parser')
+	return soup
 
 #%% 
-###8. Now using beautiful soup
-soup = BeautifulSoup(src, 'html.parser')
-
-#%% 
+def linkedinIntro(soup):
 ####INTRO BOX ####
 # Extracting the HTML of the complete introduction box that contains the name, company name, and the location
-intro = soup.find('div', {'class': 'pv-text-details__left-panel'})
-name = intro.find("h1").get_text().strip() # strip() is used to remove any extra blank spaces
-work_description = intro.find("div", {'class': 'text-body-medium'}).get_text().strip()
+	
+	intro = soup.find('div', {'class': 'pv-text-details__left-panel'})
+	name = intro.find("h1").get_text().strip() # strip() is used to remove any extra blank spaces
+	work_description = intro.find("div", {'class': 'text-body-medium'}).get_text().strip()
 
-## Let's retrieve location : 
-intro_location  = soup.find('div', {'class': 'pv-text-details__left-panel mt2'})
-location = intro_location.find("span", {'class': 'text-body-small'}).get_text().strip()
+	## Let's retrieve location : 
+	intro_location  = soup.find('div', {'class': 'pv-text-details__left-panel mt2'})
+	location = intro_location.find("span", {'class': 'text-body-small'}).get_text().strip()
 
-print("Name -->", name,
+	print("Name -->", name,
       "\nWorks At -->", work_description,
       "\nLocation -->", location)
 
-#%%####Experience BOX####
-#profile_url = "https://www.linkedin.com/in/josesousabi/details/experience/"
-#experience = soup.find_all('div', {'class': 'pvs-list__outer-container'}).find('ul').find('div').find('a').find('h3')
+#%%
+def linkedinExperience(soup, user, experience_df):
+	#print(user)
+	#print(experience_df)
+	#experience_section = soup.find_all('div', {'class': 'pvs-list__outer-container'})[3]
+	#experience_list = soup.select("#experience ~ .pvs-list__outer-container .artdeco-list__item")
+	#experience_dict = dict()
+	#experience_df = pd.DataFrame(columns = ['user','job_name','job_company','job_date','job_local'])
+	experience_list = soup.select("#experience ~ .pvs-list__outer-container .artdeco-list__item")
 
+	for i in experience_list:
+		exp = i.select(".display-flex.flex-row.justify-space-between")
+
+		if len(exp) == 1:
+			content_info=i.select(".display-flex.flex-row.justify-space-between .display-flex.flex-column.full-width .visually-hidden")
+			try : 
+				job_name=content_info[0].get_text().strip()
+			except :
+				job_name = "NA"
+			try : 
+				job_company=content_info[1].get_text().strip()
+			except :
+				job_company = "NA"
+			try : 
+				job_date=content_info[2].get_text().strip()
+			except :
+				job_date = "NA"
+			try : 
+				job_local=content_info[3].get_text().strip()
+			except :
+				job_local = "NA"
+
+			current_experience_df = pd.DataFrame([{'user' : user ,'job_name': job_name ,'job_company':job_company,'job_date':job_date,'job_local':job_local}])
+			experience_df = pd.concat([experience_df,current_experience_df])
+
+		else:
+			first = 1
+			for j in exp:
+				if first == 1:
+					job_company=j.find_all('span', {'class': 'visually-hidden'})[0].get_text().strip()
+					first = 0
+				else :
+					content_info = j.select(".display-flex.flex-row.justify-space-between .visually-hidden")
+					try:
+						job_name = content_info[0].get_text().strip()
+					except : 
+						job_name="NA"
+					try:
+						job_date = content_info[1].get_text().strip()
+					except : 
+						job_date="NA"
+					try:
+						job_local = content_info[2].get_text().strip()
+					except : 
+						job_local="NA"
+						#job_name=j.find_all('span', {'class': 'visually-hidden'})[0].get_text().strip()
+						#job_date=j.find_all('span', {'class': 'visually-hidden'})[1].get_text().strip()
+						#job_local=j.find_all('span', {'class': 'visually-hidden'})[2].get_text().strip()
+					current_experience_df = pd.DataFrame([{'user' : user ,'job_name': job_name ,'job_company':job_company,'job_date':job_date,'job_local':job_local}])
+					experience_df = pd.concat([experience_df,current_experience_df])
+
+	return experience_df
+
+# %% MAIN ##################################################################
 # %%
-experience_section = soup.find_all('div', {'class': 'pvs-list__outer-container'})[3]
-#experience_section = soup.find_all('div', {'class': 'scaffold-finite-scroll__content'})[2]
+#########_________Get users list from natixis page
+users_url ="https://www.linkedin.com/company/natixis-in-portugal/people/"
+users_page = linkedInLoadPage(users_url)
 
-#experience_list = experience_section.find('ul').find_all('li','artdeco-list__item pvs-list__item--line-separated pvs-list__item--one-column')
-#experience_list = experience_section.find('ul').find_all('li','pvs-list__paged-list-item')
-experience_list = soup.select("#experience ~ .pvs-list__outer-container .artdeco-list__item")
-#%%
-for i in experience_list:
-	#print(i.find_all('span'))
-	job_name=i.find_all('span', {'class': 'visually-hidden'})[0].get_text().strip()
-	job_company=i.find_all('span', {'class': 'visually-hidden'})[1].get_text().strip()
-	job_date=i.find_all('span', {'class': 'visually-hidden'})[2].get_text().strip()
-	job_local=i.find_all('span', {'class': 'visually-hidden'})[3].get_text().strip()
-	print("job name " + job_name)
-	print("job company " + job_company)
-	print("job date " + job_date)
-	print("job local " + job_local)
-	print("--------------------------------------------------------------------------")
-	#i.find_all('span')
-	#i.find_all('span', {'class': 'visually-hidden'})[0].get_text().strip()
-	#experience_section.find_all('span', {'class': 'visually-hidden'})[1].get_text().strip()
-	#experience_list.find_all('span', {'class': 'visually-hidden'})[2].get_text().strip()
-	#experience_list.find_all('span', {'class': 'visually-hidden'})[3].get_text().strip()
-
-
-#ajuda do mano 
-# len(soup.select("#experience ~ .pvs-list__outer-container .artdeco-list__item"))	
-#soup.select("div.pvs-list__outer-container")
-#soup.select("div.pvs-list__outer-container:nth-child(3)")
-#len(soup.select("#experience ~ .pvs-list__outer-container .artdeco-list__item"))
-
-#exp = driver.find_element(By.ID, 'experience')
-#exp.find_element(By.TAG_NAME, 'li')
-#li_tags = experience.find('div')
-
+people_list = users_page.select(".scaffold-finite-scroll__content .app-aware-link.link-without-visited-state")
+usernames_list = []
+init = "/in/"
+end = "?mini"
+for user in people_list:
+	try:
+		user_link = user.get("href")
+		username = user_link[user_link.index(init)-1 + len(init) + 1: user_link.index(end)]
+		usernames_list.append(username)
+	except:
+		print("Something failed")
 
 #%%
+#########_________Go inside a profile page
+#user = "susanapsousa"
+#profile_url = "https://www.linkedin.com/in/"+user+"/"
+experience_df = pd.DataFrame(columns = ['user','job_name','job_company','job_date','job_local'])
+usernames_list_short = usernames_list[-10:]
+
+for i in usernames_list_short:
+	profile_url = "https://www.linkedin.com/in/"+i+"/"
+	profile_page = linkedInLoadPage(profile_url)
+	experience_df = linkedinExperience(profile_page,i,experience_df)
+	time.sleep(5)
+
+experience_df.to_csv('data.csv', index=False)
 
 
+
+# %% More tests to get a list from the search
+
+search_words = "Natixis in Portugal"
+search = driver.find_element(By.CLASS_NAME, 'search-global-typeahead__input')
+search.click()
+search.send_keys(search_words)
+search.send_keys(Keys.ENTER)
+time.sleep(5)
+people_bt = driver.find_element(By.XPATH, '//button[text()="People"]')
+people_bt.click()
+# %%
+i=0
+usernames_list = []
+while i < 3 :
+	time.sleep(10)
+	people_soup = BeautifulSoup(driver.page_source, 'html.parser')	
+	people_list = people_soup.select(".reusable-search__result-container .app-aware-link.scale-down ")
+	
+	init = "/in/"
+	end = "?mini"
+	for user in people_list:
+		try:
+			user_link = user.get("href")
+			username = user_link[user_link.index(init)-1 + len(init) + 1: user_link.index(end)]
+			usernames_list.append(username)
+		except:
+			print("Something failed")
+	print(usernames_list)
+	ScrollDown()
+
+	next_bt = driver.find_element(By.XPATH,("//button[@aria-label='Next']"))
+	next_bt.click()
+	i=i+1
 
 
 
