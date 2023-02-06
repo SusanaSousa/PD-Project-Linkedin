@@ -11,6 +11,7 @@ from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 import time
 import pandas as pd
+import csv
 
 
 #%%
@@ -49,7 +50,7 @@ def ScrollDown():
 		# We will scroll for 10 seconds.You can change it as per your needs and internet speed
 		if round(end - start) > 10:
 			break
-#%% 
+ 
 def linkedInLoadPage(url):
 	driver.get(url)
 	time.sleep(5) 
@@ -77,7 +78,7 @@ def linkedInLoadPage(url):
 	soup = BeautifulSoup(src, 'html.parser')
 	return soup
 
-#%% 
+ 
 def linkedinIntro(soup):
 ####INTRO BOX ####
 # Extracting the HTML of the complete introduction box that contains the name, company name, and the location
@@ -94,7 +95,7 @@ def linkedinIntro(soup):
       "\nWorks At -->", work_description,
       "\nLocation -->", location)
 
-#%%
+
 def linkedinExperience(soup, user, experience_df):
 	#print(user)
 	#print(experience_df)
@@ -160,72 +161,104 @@ def linkedinExperience(soup, user, experience_df):
 # %% MAIN ##################################################################
 # %%
 #########_________Get users list from natixis page
-users_url ="https://www.linkedin.com/company/natixis-in-portugal/people/"
-users_page = linkedInLoadPage(users_url)
+#users_url ="https://www.linkedin.com/company/natixis-in-portugal/people/"
+#users_page = linkedInLoadPage(users_url)
 
-people_list = users_page.select(".scaffold-finite-scroll__content .app-aware-link.link-without-visited-state")
-usernames_list = []
-init = "/in/"
-end = "?mini"
-for user in people_list:
-	try:
-		user_link = user.get("href")
-		username = user_link[user_link.index(init)-1 + len(init) + 1: user_link.index(end)]
-		usernames_list.append(username)
-	except:
-		print("Something failed")
+#people_list = users_page.select(".scaffold-finite-scroll__content .app-aware-link.link-without-visited-state")
+#usernames_list = []
+#init = "/in/"
+#end = "?mini"
+#for user in people_list:
+#	try:
+#		user_link = user.get("href")
+#		username = user_link[user_link.index(init)-1 + len(init) + 1: user_link.index(end)]
+#		usernames_list.append(username)
+#	except:
+#		print("Something failed")
 
 #%%
 #########_________Go inside a profile page
 #user = "susanapsousa"
 #profile_url = "https://www.linkedin.com/in/"+user+"/"
-experience_df = pd.DataFrame(columns = ['user','job_name','job_company','job_date','job_local'])
-usernames_list_short = usernames_list[-10:]
+#experience_df = pd.DataFrame(columns = ['user','job_name','job_company','job_date','job_local'])
+#usernames_list_short = usernames_list[-10:]
 
-for i in usernames_list_short:
-	profile_url = "https://www.linkedin.com/in/"+i+"/"
-	profile_page = linkedInLoadPage(profile_url)
-	experience_df = linkedinExperience(profile_page,i,experience_df)
-	time.sleep(5)
+#for i in usernames_list_short:
+#	profile_url = "https://www.linkedin.com/in/"+i+"/"
+#	profile_page = linkedInLoadPage(profile_url)
+#	experience_df = linkedinExperience(profile_page,i,experience_df)
+#	time.sleep(5)
 
-experience_df.to_csv('data.csv', index=False)
+#experience_df.to_csv('data.csv', index=False)
 
 
 
 # %% More tests to get a list from the search
 
+def getPeopleBySearch(search_words):
+	#Search the desired words in the People category
+	search = driver.find_element(By.CLASS_NAME, 'search-global-typeahead__input')
+	search.click()
+	search.send_keys(search_words)
+	search.send_keys(Keys.ENTER)
+	time.sleep(5)
+	people_bt = driver.find_element(By.XPATH, '//button[text()="People"]')
+	people_bt.click()
+
+	#Loop into the list of people to get the username of the profile.
+	#The username will be saved and then used to extract the info in a second step
+	i=0
+	loop_limit = 20 #it will be multiplied by 10 as it is the max number of people presented by page
+	usernames_list = []
+	while i < loop_limit :
+		time.sleep(10)
+		people_soup = BeautifulSoup(driver.page_source, 'html.parser')	
+		people_list = people_soup.select(".reusable-search__result-container .app-aware-link.scale-down ")
+		
+		init = "/in/"
+		end = "?mini"
+		for user in people_list:
+			try:
+				user_link = user.get("href")
+				username = user_link[user_link.index(init)-1 + len(init) + 1: user_link.index(end)]
+				usernames_list.append(username)
+			except:
+				print("Something failed")
+				return usernames_list
+		#print(usernames_list)
+		ScrollDown()
+
+		next_bt = driver.find_element(By.XPATH,("//button[@aria-label='Next']"))
+		next_bt.click()
+		i=i+1
+	return usernames_list
+
+
+# %%  MAIN 
 search_words = "Natixis in Portugal"
-search = driver.find_element(By.CLASS_NAME, 'search-global-typeahead__input')
-search.click()
-search.send_keys(search_words)
-search.send_keys(Keys.ENTER)
-time.sleep(5)
-people_bt = driver.find_element(By.XPATH, '//button[text()="People"]')
-people_bt.click()
+usernames_list = getPeopleBySearch(search_words)
+usernames_list_short = usernames_list[-10:]
+
+
+users_df = pd.DataFrame(data={"user": usernames_list})
+users_df.to_csv('users.csv', index=False)
+
 # %%
-i=0
-usernames_list = []
-while i < 3 :
-	time.sleep(10)
-	people_soup = BeautifulSoup(driver.page_source, 'html.parser')	
-	people_list = people_soup.select(".reusable-search__result-container .app-aware-link.scale-down ")
-	
-	init = "/in/"
-	end = "?mini"
-	for user in people_list:
-		try:
-			user_link = user.get("href")
-			username = user_link[user_link.index(init)-1 + len(init) + 1: user_link.index(end)]
-			usernames_list.append(username)
-		except:
-			print("Something failed")
-	print(usernames_list)
-	ScrollDown()
+#Reading the users from the previous created list
+users = pd.read_csv('users.csv')
+usernames_list = users['user']
+#%%
+experience_df = pd.DataFrame(columns = ['user','job_name','job_company','job_date','job_local'])
 
-	next_bt = driver.find_element(By.XPATH,("//button[@aria-label='Next']"))
-	next_bt.click()
-	i=i+1
+for i in usernames_list:
+	try:
+		print(i)
+		profile_url = "https://www.linkedin.com/in/"+i+"/"
+		profile_page = linkedInLoadPage(profile_url)
+		experience_df = linkedinExperience(profile_page,i,experience_df)
+		time.sleep(5)
+	except:
+		experience_df.to_csv('data.csv', index=False)
 
-
-
+experience_df.to_csv('data.csv', index=False)
 # %%
